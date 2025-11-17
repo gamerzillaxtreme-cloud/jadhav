@@ -1,0 +1,110 @@
+The core gameplay is done — the snake moves, the world scrolls, pipes appear, obstacles work, collectibles work, and there is a maze section.
+
+Now I want you to EXTEND the game by adding a complete level + world system without breaking the existing gameplay.
+
+Please add the following upgrades:
+
+⸻
+
+⭐ 1. Add Worlds and Themes
+
+Create 5 worlds, each 10 levels:
+	1.	Forest (Levels 1–10)
+	2.	Rocky Mountains (11–20)
+	3.	Desert (21–30)
+	4.	Ice World (31–40)
+	5.	Neon Cave (41–50)
+
+Each world should:
+	•	change background colors
+	•	change pipe/obstacle colors
+	•	load slightly different physics or effects
+	•	introduce 1–2 new mechanics (listed below)
+
+⸻
+
+⭐ 2. Add Difficulty Scaling
+
+Add formulas based on currentLevel:
+
+scrollSpeed = baseSpeed + currentLevel * 0.04
+gapSize = baseGap - currentLevel * 0.7
+pipeMoveChance = currentLevel * 0.02
+enemyChance = Math.max(0, (currentLevel - 15) * 0.015)
+mazeComplexity = Math.floor(currentLevel / 10)
+
+These should be used in obstacle generation, maze generation, and snake movement feel.
+
+⸻
+
+⭐ 3. Add New Obstacle Types
+
+Please add these new obstacles, and integrate them into the procedural generator based on world + level:
+	•	Moving vertical pipes
+	•	Horizontal sliding pipes
+	•	Rotating obstacles (simple rotation animation)
+	•	Falling rocks / icicles
+	•	Moving platforms inside the maze
+	•	Enemies (simple left–right movers)
+
+Each world should introduce 1–2 of these.
+
+⸻
+
+⭐ 4. Upgrade the Maze System
+
+Modify the maze generator so it supports:
+	•	multiple path branches
+	•	fake exits
+	•	moving blocks
+	•	key → door mechanic
+	•	increasing complexity based on world
+	•	different maze colors per world
+
+Trigger the maze zone the same way as before, but use new generation rules.
+
+⸻
+
+⭐ 5. Add Power-Ups
+
+Add these power-ups with timers:
+	•	Shield (1 hit)
+	•	Ghost mode (pass through 1 obstacle)
+	•	Slow-motion
+	•	Speed boost
+	•	Mini-snake (smaller hitbox)
+	•	Magnet for collectibles
+
+Spawn them occasionally in the scrolling world.
+
+⸻
+
+⭐ 6. Connect Everything
+
+Make sure:
+	•	The level increases automatically as the player covers distance
+	•	Level number appears on screen
+	•	When level range changes, the world theme updates
+	•	Obstacle generators read the currentLevel
+	•	Maze generator reads the currentLevel
+	•	Nothing breaks the existing gameplay
+
+Do NOT change my fundamental snake movement or main game loop — only extend the content and systems.
+
+⸻
+
+End of Prompt
+
+⸻
+
+Paste this directly into Replit AI, and it will start adding Worlds, Levels, Obstacles, Maze Upgrades, and Difficulty scaling on top of your existing working Flappy Snake.
+
+If you want, I can also create a separate prompt for:
+	•	Only obstacles
+	•	Only worlds
+	•	Only maze system
+	•	Only power-ups
+	•	Level progression logic
+	•	Performance optimization
+
+Just tell me which one you want next.
