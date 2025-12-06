@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { subscribeWithSelector } from "zustand/middleware";
 
-export type GamePhase = "ready" | "playing" | "levelComplete" | "ended";
+export type GamePhase = "ready" | "playing" | "levelComplete" | "ended" | "levelSelect";
 
 interface WorldUnlockMessage {
   worldName: string;
@@ -17,11 +17,15 @@ interface GameState {
   // Actions
   start: () => void;
   restart: () => void;
+  continueGame: () => void;
   end: () => void;
   completeLevel: () => void;
   nextLevel: () => void;
   showWorldUnlock: (worldName: string, worldId: string, description: string) => void;
   clearWorldUnlock: () => void;
+  openLevelSelect: () => void;
+  closeLevelSelect: () => void;
+  startFromLevel: () => void;
 }
 
 export const useGame = create<GameState>()(
@@ -41,6 +45,15 @@ export const useGame = create<GameState>()(
     
     restart: () => {
       set(() => ({ phase: "ready" }));
+    },
+    
+    continueGame: () => {
+      set((state) => {
+        if (state.phase === "ended") {
+          return { phase: "playing" };
+        }
+        return {};
+      });
     },
     
     end: () => {
@@ -86,6 +99,33 @@ export const useGame = create<GameState>()(
     
     clearWorldUnlock: () => {
       set(() => ({ worldUnlockMessage: null }));
+    },
+    
+    openLevelSelect: () => {
+      set((state) => {
+        if (state.phase === "ready") {
+          return { phase: "levelSelect" };
+        }
+        return {};
+      });
+    },
+    
+    closeLevelSelect: () => {
+      set((state) => {
+        if (state.phase === "levelSelect") {
+          return { phase: "ready" };
+        }
+        return {};
+      });
+    },
+    
+    startFromLevel: () => {
+      set((state) => {
+        if (state.phase === "levelSelect") {
+          return { phase: "playing" };
+        }
+        return {};
+      });
     },
   }))
 );

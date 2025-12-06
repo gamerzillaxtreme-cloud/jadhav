@@ -18,6 +18,7 @@ export interface WorldConfig {
     hasFallingRocks?: boolean;
     hasMovingPlatforms?: boolean;
     hasEnemies?: boolean;
+    hasGravity?: boolean;
   };
   difficultyMultiplier: number;
   description: string;
@@ -29,13 +30,13 @@ export const WORLDS: Record<string, WorldConfig> = {
     name: 'Forest',
     levelRange: [1, 10],
     theme: {
-      backgroundColor: '#2d5016',
-      backgroundGradient: 'linear-gradient(to bottom, #4a7c2f 0%, #2d5016 100%)',
-      pipeColor: '#2d5016',
-      pipeColorVariant: '#3d6a1f',
+      backgroundColor: '#87CEEB',
+      backgroundGradient: 'linear-gradient(to bottom, #87CEEB 0%, #98FB98 100%)',
+      pipeColor: '#73BF2E',
+      pipeColorVariant: '#5FA328',
       obstacleColor: '#8B4513',
-      groundColor: '#1a3d0a',
-      textColor: '#90EE90',
+      groundColor: '#228B22',
+      textColor: '#FFFFFF',
     },
     mechanics: {
       hasMovingPipes: false,
@@ -54,13 +55,13 @@ export const WORLDS: Record<string, WorldConfig> = {
     name: 'Rocky Mountains',
     levelRange: [11, 20],
     theme: {
-      backgroundColor: '#4a4a4a',
-      backgroundGradient: 'linear-gradient(to bottom, #6b6b6b 0%, #4a4a4a 100%)',
-      pipeColor: '#5a5a5a',
-      pipeColorVariant: '#6a6a6a',
+      backgroundColor: '#708090',
+      backgroundGradient: 'linear-gradient(to bottom, #B0C4DE 0%, #708090 100%)',
+      pipeColor: '#73BF2E',
+      pipeColorVariant: '#5FA328',
       obstacleColor: '#696969',
-      groundColor: '#3a3a3a',
-      textColor: '#D3D3D3',
+      groundColor: '#4A4A4A',
+      textColor: '#FFFFFF',
     },
     mechanics: {
       hasMovingPipes: true,
@@ -79,13 +80,13 @@ export const WORLDS: Record<string, WorldConfig> = {
     name: 'Desert',
     levelRange: [21, 30],
     theme: {
-      backgroundColor: '#d4a574',
-      backgroundGradient: 'linear-gradient(to bottom, #f4d5a4 0%, #d4a574 100%)',
-      pipeColor: '#704214',
-      pipeColorVariant: '#8B5A2B',
+      backgroundColor: '#FFB347',
+      backgroundGradient: 'linear-gradient(to bottom, #FFD700 0%, #DEB887 100%)',
+      pipeColor: '#73BF2E',
+      pipeColorVariant: '#5FA328',
       obstacleColor: '#CD853F',
-      groundColor: '#b08d57',
-      textColor: '#FFD700',
+      groundColor: '#D2691E',
+      textColor: '#FFFFFF',
     },
     mechanics: {
       hasMovingPipes: true,
@@ -104,13 +105,13 @@ export const WORLDS: Record<string, WorldConfig> = {
     name: 'Ice World',
     levelRange: [31, 40],
     theme: {
-      backgroundColor: '#b0e0e6',
-      backgroundGradient: 'linear-gradient(to bottom, #e0f6ff 0%, #b0e0e6 100%)',
-      pipeColor: '#87ceeb',
-      pipeColorVariant: '#b0e0e6',
+      backgroundColor: '#E0FFFF',
+      backgroundGradient: 'linear-gradient(to bottom, #F0FFFF 0%, #87CEEB 100%)',
+      pipeColor: '#73BF2E',
+      pipeColorVariant: '#5FA328',
       obstacleColor: '#4682B4',
-      groundColor: '#7ec8e3',
-      textColor: '#00FFFF',
+      groundColor: '#B0E0E6',
+      textColor: '#000080',
     },
     mechanics: {
       hasMovingPipes: true,
@@ -119,9 +120,10 @@ export const WORLDS: Record<string, WorldConfig> = {
       hasFallingRocks: true,
       hasMovingPlatforms: true,
       hasEnemies: true,
+      hasGravity: true,
     },
     difficultyMultiplier: 1.6,
-    description: 'Frozen landscape with slippery surfaces',
+    description: 'Frozen landscape with heavy gravity',
   },
   
   neon: {
@@ -129,13 +131,13 @@ export const WORLDS: Record<string, WorldConfig> = {
     name: 'Neon Cave',
     levelRange: [41, 50],
     theme: {
-      backgroundColor: '#1a1a2e',
-      backgroundGradient: 'linear-gradient(to bottom, #16213e 0%, #0f0f1e 100%)',
-      pipeColor: '#e94560',
-      pipeColorVariant: '#0f3460',
+      backgroundColor: '#1a0a2e',
+      backgroundGradient: 'linear-gradient(to bottom, #2d1b4e 0%, #0a0a1e 100%)',
+      pipeColor: '#73BF2E',
+      pipeColorVariant: '#5FA328',
       obstacleColor: '#00d9ff',
-      groundColor: '#0a0a1e',
-      textColor: '#ff00ff',
+      groundColor: '#1a0a2e',
+      textColor: '#FF00FF',
     },
     mechanics: {
       hasMovingPipes: true,
@@ -144,9 +146,10 @@ export const WORLDS: Record<string, WorldConfig> = {
       hasFallingRocks: true,
       hasMovingPlatforms: true,
       hasEnemies: true,
+      hasGravity: true,
     },
     difficultyMultiplier: 2.0,
-    description: 'Futuristic neon cave with all mechanics',
+    description: 'Futuristic neon cave with extreme gravity',
   },
 };
 
@@ -162,4 +165,27 @@ export function getWorldForLevel(level: number): WorldConfig {
 export function getLevelProgress(level: number, world: WorldConfig): number {
   const [start, end] = world.levelRange;
   return ((level - start) / (end - start + 1)) * 100;
+}
+
+// Calculate extra gravity for Ice World and Neon Cave
+// This is added ON TOP of normal GRAVITY (0.08)
+// Values are significant enough to be noticeable but still playable
+export function getExtraGravity(level: number, world: WorldConfig): number {
+  if (!world.mechanics.hasGravity) {
+    return 0;
+  }
+  
+  // Ice World: levels 31-40, gravity starts at 0.06 and goes up to 0.12
+  // Neon Cave: levels 41-50, gravity starts at 0.12 and goes up to 0.20
+  if (world.id === 'ice') {
+    // Level 31 = 0.06, Level 40 = 0.12
+    const levelInWorld = level - 31;
+    return 0.06 + (levelInWorld * 0.0067); // ~0.007 increase per level
+  } else if (world.id === 'neon') {
+    // Level 41 = 0.12, Level 50 = 0.20
+    const levelInWorld = level - 41;
+    return 0.12 + (levelInWorld * 0.009); // ~0.009 increase per level
+  }
+  
+  return 0;
 }

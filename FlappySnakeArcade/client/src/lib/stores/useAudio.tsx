@@ -4,6 +4,7 @@ interface AudioState {
   backgroundMusic: HTMLAudioElement | null;
   hitSound: HTMLAudioElement | null;
   successSound: HTMLAudioElement | null;
+  deathSound: HTMLAudioElement | null;
   isMuted: boolean;
   isMusicMuted: boolean;
   isSoundEffectsMuted: boolean;
@@ -12,6 +13,7 @@ interface AudioState {
   setBackgroundMusic: (music: HTMLAudioElement) => void;
   setHitSound: (sound: HTMLAudioElement) => void;
   setSuccessSound: (sound: HTMLAudioElement) => void;
+  setDeathSound: (sound: HTMLAudioElement) => void;
   
   // Control functions
   toggleMute: () => void;
@@ -19,19 +21,22 @@ interface AudioState {
   toggleSoundEffectsMute: () => void;
   playHit: () => void;
   playSuccess: () => void;
+  playDeath: () => void;
 }
 
 export const useAudio = create<AudioState>((set, get) => ({
   backgroundMusic: null,
   hitSound: null,
   successSound: null,
-  isMuted: true, // Start muted by default
-  isMusicMuted: true,
-  isSoundEffectsMuted: true,
+  deathSound: null,
+  isMuted: false,
+  isMusicMuted: false,
+  isSoundEffectsMuted: false,
   
   setBackgroundMusic: (music) => set({ backgroundMusic: music }),
   setHitSound: (sound) => set({ hitSound: sound }),
   setSuccessSound: (sound) => set({ successSound: sound }),
+  setDeathSound: (sound) => set({ deathSound: sound }),
   
   toggleMute: () => {
     const { isMuted } = get();
@@ -87,6 +92,22 @@ export const useAudio = create<AudioState>((set, get) => ({
       successSound.currentTime = 0;
       successSound.play().catch(error => {
         console.log("Success sound play prevented:", error);
+      });
+    }
+  },
+  
+  playDeath: () => {
+    const { deathSound, isSoundEffectsMuted } = get();
+    if (deathSound) {
+      if (isSoundEffectsMuted) {
+        console.log("Death sound skipped (muted)");
+        return;
+      }
+      
+      const soundClone = deathSound.cloneNode() as HTMLAudioElement;
+      soundClone.volume = 0.5;
+      soundClone.play().catch(error => {
+        console.log("Death sound play prevented:", error);
       });
     }
   }

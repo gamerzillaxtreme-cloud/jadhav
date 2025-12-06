@@ -24,6 +24,7 @@ export interface Bug {
   id: string;
   x: number;
   y: number;
+  velocityY?: number;
   glowPhase: number;
   type: "apple" | "banana" | "berry" | "mango";
 }
@@ -39,6 +40,8 @@ export interface Obstacle {
   animationPhase?: "rising" | "active" | "falling" | "hidden";
   animationTimer?: number;
   pipeY?: number;
+  pipeId?: string; // For cacti attached to pipes - follows pipe movement
+  pipeBaseHeight?: number; // Original pipe height before moveOffset
   swimDirection?: number;
   isChasing?: boolean;
   originalX?: number;
@@ -70,6 +73,7 @@ export interface PowerUp {
   type: PowerUpType;
   x: number;
   y: number;
+  velocityY?: number;
   duration?: number;
 }
 
@@ -110,6 +114,7 @@ interface FlappySnakeState {
   environment: Environment;
   distance: number;
   levelDistance: number;
+  maxReachedX: number; // High-water mark - furthest X position reached this level
   currentLevel: number;
   currentWorldId: string;
   inBonusScene: boolean;
@@ -126,6 +131,49 @@ interface FlappySnakeState {
   mazeCompletedThisLevel: boolean;
   levelObjectives: LevelObjective[];
   objectiveProgress: Record<string, number>;
+  spawnedObjectiveItems: Record<string, number>;
+  
+  deathCheckpoint: {
+    score: number;
+    distance: number;
+    levelDistance: number;
+    currentLevel: number;
+    currentWorldId: string;
+    worldScroll: number;
+    snakeHead: Vector2D;
+    snakeVelocity: Vector2D;
+    snakeAngle: number;
+    snakeLength: number;
+    snakeSegments: SnakeSegment[];
+    activePowerUps: ActivePowerUp[];
+    objectiveProgress: Record<string, number>;
+    spawnedObjectiveItems: Record<string, number>;
+    inBonusScene: boolean;
+    mazeSpawnedThisLevel: boolean;
+    mazeCompletedThisLevel: boolean;
+    pipes: Pipe[];
+    obstacles: Obstacle[];
+    bugs: Bug[];
+    powerUps: PowerUp[];
+    camera: { x: number; y: number; zoom: number };
+    activeMaze: {
+      x: number;
+      grid: MazeCell[][];
+      snakePos: { x: number; y: number };
+      completed?: boolean;
+    } | null;
+    mazeCountdown: number;
+  } | null;
+  
+  continueInvincibility: number;
+  
+  speedReductionActive: boolean;
+  speedReductionEndTime: number;
+  speedReductionUsedThisLevel: boolean;
+  
+  gravityDisabledActive: boolean;
+  gravityDisabledEndTime: number;
+  gravityDisabledUsedThisLevel: boolean;
   
   snake: {
     head: Vector2D;
@@ -170,6 +218,7 @@ interface FlappySnakeState {
   updateEnvironment: (env: Environment) => void;
   updateDistance: (distance: number) => void;
   updateLevelDistance: (distance: number) => void;
+  updateMaxReachedX: (x: number) => void;
   updateCurrentLevel: (level: number) => void;
   updateCurrentWorldId: (worldId: string) => void;
   startNextLevel: () => void;
@@ -183,13 +232,28 @@ interface FlappySnakeState {
   updateMazeSnakePos: (pos: { x: number; y: number }) => void;
   updateMazeCountdown: (countdown: number) => void;
   incrementObjectiveProgress: (type: string, amount?: number) => void;
+  incrementSpawnedObjectiveItem: (type: string, amount?: number) => void;
+  getRequiredSpawns: () => Record<string, { required: number; spawned: number }>;
   checkObjectivesComplete: () => boolean;
+  createDeathCheckpoint: () => void;
+  restoreFromDeathCheckpoint: () => boolean;
+  clearDeathCheckpoint: () => void;
+  updateContinueInvincibility: (time: number) => void;
+  decrementContinueInvincibility: (delta: number) => void;
+  startFromSpecificLevel: (level: number) => void;
+  activateSpeedReduction: (durationSeconds: number) => void;
+  updateSpeedReduction: (currentTime: number) => void;
+  canShowSpeedReductionAd: () => boolean;
+  activateGravityDisabled: (durationSeconds: number) => void;
+  updateGravityDisabled: (currentTime: number) => void;
+  canShowGravityDisabledAd: () => boolean;
 }
 
 export const useFlappySnake = create<FlappySnakeState>((set, get) => ({
   score: 0,
   distance: 0,
   levelDistance: 0,
+  maxReachedX: 100, // Start at initial snake position
   currentLevel: 1,
   currentWorldId: 'forest',
   inBonusScene: false,
@@ -201,6 +265,15 @@ export const useFlappySnake = create<FlappySnakeState>((set, get) => ({
   mazeCompletedThisLevel: false,
   levelObjectives: getLevelObjectives(1),
   objectiveProgress: {},
+  spawnedObjectiveItems: {},
+  deathCheckpoint: null,
+  continueInvincibility: 0,
+  speedReductionActive: false,
+  speedReductionEndTime: 0,
+  speedReductionUsedThisLevel: false,
+  gravityDisabledActive: false,
+  gravityDisabledEndTime: 0,
+  gravityDisabledUsedThisLevel: false,
   combo: 0,
   comboTimer: 0,
   highScore: parseInt(localStorage.getItem("flappySnakeHighScore") || "0"),
@@ -240,6 +313,7 @@ export const useFlappySnake = create<FlappySnakeState>((set, get) => ({
       level: 1,
       distance: 0,
       levelDistance: 0,
+      maxReachedX: 100, // Reset high-water mark to initial position
       currentLevel: 1,
       currentWorldId: 'forest',
       inBonusScene: false,
@@ -250,6 +324,15 @@ export const useFlappySnake = create<FlappySnakeState>((set, get) => ({
       mazeCompletedThisLevel: false,
       levelObjectives: getLevelObjectives(1),
       objectiveProgress: {},
+      spawnedObjectiveItems: {},
+      deathCheckpoint: null,
+      continueInvincibility: 0,
+      speedReductionActive: false,
+      speedReductionEndTime: 0,
+      speedReductionUsedThisLevel: false,
+      gravityDisabledActive: false,
+      gravityDisabledEndTime: 0,
+      gravityDisabledUsedThisLevel: false,
       snake: {
         head: { x: 100, y: 300 },
         velocity: { x: 3, y: 0 },
@@ -352,6 +435,10 @@ export const useFlappySnake = create<FlappySnakeState>((set, get) => ({
     set({ levelDistance: distance });
   },
   
+  updateMaxReachedX: (x) => {
+    set({ maxReachedX: x });
+  },
+  
   startNextLevel: () => {
     const state = get();
     const nextLevel = Math.min(50, state.currentLevel + 1);
@@ -363,8 +450,10 @@ export const useFlappySnake = create<FlappySnakeState>((set, get) => ({
       currentLevel: nextLevel,
       currentWorldId: world.id,
       levelDistance: 0,
+      maxReachedX: 100, // Reset high-water mark for new level
       levelObjectives: getLevelObjectives(nextLevel),
       objectiveProgress: {},
+      spawnedObjectiveItems: {},
       snake: {
         head: { x: 100, y: 300 },
         velocity: { x: 3, y: 0 },
@@ -388,6 +477,12 @@ export const useFlappySnake = create<FlappySnakeState>((set, get) => ({
       inBonusScene: false,
       isBeingChased: false,
       bonusPowerUpsCollected: 0,
+      speedReductionActive: false,
+      speedReductionEndTime: 0,
+      speedReductionUsedThisLevel: false,
+      gravityDisabledActive: false,
+      gravityDisabledEndTime: 0,
+      gravityDisabledUsedThisLevel: false,
     });
   },
   
@@ -403,6 +498,7 @@ export const useFlappySnake = create<FlappySnakeState>((set, get) => ({
       level: savedLevel,
       distance: 0,
       levelDistance: 0,
+      maxReachedX: 100, // Reset high-water mark
       currentLevel: savedLevel,
       currentWorldId: world.id,
       environment: env,
@@ -411,10 +507,17 @@ export const useFlappySnake = create<FlappySnakeState>((set, get) => ({
       bonusPowerUpsCollected: 0,
       levelObjectives: getLevelObjectives(savedLevel),
       objectiveProgress: {},
+      spawnedObjectiveItems: {},
       activeMaze: null,
       mazeCountdown: 0,
       mazeSpawnedThisLevel: false,
       mazeCompletedThisLevel: false,
+      speedReductionActive: false,
+      speedReductionEndTime: 0,
+      speedReductionUsedThisLevel: false,
+      gravityDisabledActive: false,
+      gravityDisabledEndTime: 0,
+      gravityDisabledUsedThisLevel: false,
       snake: {
         head: { x: 100, y: 300 },
         velocity: { x: 3, y: 0 },
@@ -526,6 +629,30 @@ export const useFlappySnake = create<FlappySnakeState>((set, get) => ({
     }));
   },
   
+  incrementSpawnedObjectiveItem: (type, amount = 1) => {
+    set((state) => ({
+      spawnedObjectiveItems: {
+        ...state.spawnedObjectiveItems,
+        [type]: (state.spawnedObjectiveItems[type] || 0) + amount,
+      },
+    }));
+  },
+  
+  getRequiredSpawns: () => {
+    const state = get();
+    const { levelObjectives, spawnedObjectiveItems } = state;
+    const result: Record<string, { required: number; spawned: number }> = {};
+    
+    for (const objective of levelObjectives) {
+      const extraBuffer = Math.ceil(objective.target * 0.5);
+      const required = objective.target + extraBuffer;
+      const spawned = spawnedObjectiveItems[objective.type] || 0;
+      result[objective.type] = { required, spawned };
+    }
+    
+    return result;
+  },
+  
   checkObjectivesComplete: () => {
     const state = get();
     const { levelObjectives, objectiveProgress } = state;
@@ -534,5 +661,271 @@ export const useFlappySnake = create<FlappySnakeState>((set, get) => ({
       const progress = objectiveProgress[objective.type] || 0;
       return progress >= objective.target;
     });
+  },
+  
+  createDeathCheckpoint: () => {
+    const state = get();
+    console.log("[CHECKPOINT] Creating death checkpoint:", {
+      score: state.score,
+      distance: state.distance,
+      level: state.currentLevel,
+      snakeLength: state.snake.length,
+      pipeCount: state.pipes.length,
+      cameraX: state.camera.x,
+      hasMaze: !!state.activeMaze,
+      mazeCountdown: state.mazeCountdown
+    });
+    set({
+      deathCheckpoint: {
+        score: state.score,
+        distance: state.distance,
+        levelDistance: state.levelDistance,
+        currentLevel: state.currentLevel,
+        currentWorldId: state.currentWorldId,
+        worldScroll: state.worldScroll,
+        snakeHead: { ...state.snake.head },
+        snakeVelocity: { ...state.snake.velocity },
+        snakeAngle: state.snake.angle,
+        snakeLength: state.snake.length,
+        snakeSegments: state.snake.segments.map(s => ({ ...s })),
+        activePowerUps: state.activePowerUps.map(p => ({ ...p })),
+        objectiveProgress: { ...state.objectiveProgress },
+        spawnedObjectiveItems: { ...state.spawnedObjectiveItems },
+        inBonusScene: state.inBonusScene,
+        mazeSpawnedThisLevel: state.mazeSpawnedThisLevel,
+        mazeCompletedThisLevel: state.mazeCompletedThisLevel,
+        pipes: state.pipes.map(p => ({ ...p })),
+        obstacles: state.obstacles.map(o => ({ ...o })),
+        bugs: state.bugs.map(b => ({ ...b })),
+        powerUps: state.powerUps.map(p => ({ ...p })),
+        camera: { ...state.camera },
+        activeMaze: state.activeMaze ? {
+          x: state.activeMaze.x,
+          grid: state.activeMaze.grid.map(row => row.map(cell => ({ ...cell }))),
+          snakePos: { ...state.activeMaze.snakePos },
+          completed: state.activeMaze.completed
+        } : null,
+        mazeCountdown: state.mazeCountdown,
+      },
+    });
+  },
+  
+  restoreFromDeathCheckpoint: () => {
+    const checkpoint = get().deathCheckpoint;
+    console.log("[CHECKPOINT] Restoring from checkpoint:", checkpoint);
+    if (!checkpoint) {
+      console.log("[CHECKPOINT] No checkpoint found!");
+      return false;
+    }
+    
+    console.log("[CHECKPOINT] Restoring EXACT state:", {
+      snakeHeadX: checkpoint.snakeHead.x,
+      snakeHeadY: checkpoint.snakeHead.y,
+      cameraX: checkpoint.camera.x,
+      worldScroll: checkpoint.worldScroll,
+      distance: checkpoint.distance,
+      score: checkpoint.score,
+      snakeLength: checkpoint.snakeLength,
+      pipeCount: checkpoint.pipes.length,
+      obstacleCount: checkpoint.obstacles.length,
+      bugCount: checkpoint.bugs.length,
+      hasMaze: !!checkpoint.activeMaze,
+      mazeCountdown: checkpoint.mazeCountdown
+    });
+    
+    // If restoring inside an active maze, clamp position to maze boundaries
+    let restoredHead = { ...checkpoint.snakeHead };
+    let restoredVelocity = { ...checkpoint.snakeVelocity };
+    
+    if (checkpoint.activeMaze && !checkpoint.activeMaze.completed) {
+      const CELL_SIZE = 60;
+      const mazeStartX = checkpoint.activeMaze.x;
+      const mazeEndX = mazeStartX + CELL_SIZE * 10;
+      const mazeTopY = CELL_SIZE * 0.4; // headRadius margin
+      const mazeBottomY = CELL_SIZE * 10 - CELL_SIZE * 0.4;
+      
+      // Clamp position inside maze with small margin
+      if (restoredHead.x >= mazeStartX && restoredHead.x <= mazeEndX) {
+        restoredHead.y = Math.max(mazeTopY, Math.min(mazeBottomY, restoredHead.y));
+      }
+      
+      // Zero velocity to prevent immediate wall collision
+      restoredVelocity = { x: 0, y: 0 };
+      
+      console.log("[CHECKPOINT] Clamped position for maze:", {
+        originalY: checkpoint.snakeHead.y,
+        clampedY: restoredHead.y,
+        mazeTopY,
+        mazeBottomY
+      });
+    }
+    
+    set({
+      score: checkpoint.score,
+      distance: checkpoint.distance,
+      levelDistance: checkpoint.levelDistance,
+      currentLevel: checkpoint.currentLevel,
+      currentWorldId: checkpoint.currentWorldId,
+      worldScroll: checkpoint.worldScroll,
+      inBonusScene: checkpoint.inBonusScene,
+      mazeSpawnedThisLevel: checkpoint.mazeSpawnedThisLevel,
+      mazeCompletedThisLevel: checkpoint.mazeCompletedThisLevel,
+      objectiveProgress: { ...checkpoint.objectiveProgress },
+      spawnedObjectiveItems: { ...checkpoint.spawnedObjectiveItems },
+      activePowerUps: checkpoint.activePowerUps.map(p => ({ ...p })),
+      activeMaze: checkpoint.activeMaze ? {
+        x: checkpoint.activeMaze.x,
+        grid: checkpoint.activeMaze.grid.map(row => row.map(cell => ({ ...cell }))),
+        snakePos: { ...checkpoint.activeMaze.snakePos },
+        completed: checkpoint.activeMaze.completed
+      } : null,
+      mazeCountdown: checkpoint.mazeCountdown,
+      obstacles: checkpoint.obstacles.map(o => ({ ...o })),
+      pipes: checkpoint.pipes.map(p => ({ ...p })),
+      bugs: checkpoint.bugs.map(b => ({ ...b })),
+      powerUps: checkpoint.powerUps.map(p => ({ ...p })),
+      projectiles: [],
+      continueInvincibility: 3.0,
+      camera: { ...checkpoint.camera },
+      snake: {
+        head: restoredHead,
+        velocity: restoredVelocity,
+        angle: checkpoint.snakeAngle,
+        segments: checkpoint.snakeSegments.map(s => ({ ...s })),
+        length: checkpoint.snakeLength,
+        evolutionStage: Math.floor(checkpoint.snakeLength / 10),
+      },
+      deathCheckpoint: null,
+    });
+    
+    return true;
+  },
+  
+  clearDeathCheckpoint: () => {
+    set({ deathCheckpoint: null });
+  },
+  
+  updateContinueInvincibility: (time: number) => {
+    set({ continueInvincibility: time });
+  },
+  
+  decrementContinueInvincibility: (delta: number) => {
+    set((state) => ({
+      continueInvincibility: Math.max(0, state.continueInvincibility - delta),
+    }));
+  },
+  
+  startFromSpecificLevel: (level: number) => {
+    const targetLevel = Math.max(1, Math.min(50, level));
+    const world = getWorldForLevel(targetLevel);
+    const currentHighScore = get().highScore;
+    
+    set({
+      score: 0,
+      combo: 0,
+      comboTimer: 0,
+      level: 1,
+      distance: 0,
+      levelDistance: 0,
+      maxReachedX: 100,
+      currentLevel: targetLevel,
+      currentWorldId: world.id,
+      inBonusScene: false,
+      isBeingChased: false,
+      bonusPowerUpsCollected: 0,
+      activeMaze: null,
+      mazeSpawnedThisLevel: false,
+      mazeCompletedThisLevel: false,
+      mazeCountdown: 0,
+      levelObjectives: getLevelObjectives(targetLevel),
+      objectiveProgress: {},
+      spawnedObjectiveItems: {},
+      deathCheckpoint: null,
+      continueInvincibility: 0,
+      speedReductionActive: false,
+      speedReductionEndTime: 0,
+      speedReductionUsedThisLevel: false,
+      gravityDisabledActive: false,
+      gravityDisabledEndTime: 0,
+      gravityDisabledUsedThisLevel: false,
+      highScore: currentHighScore,
+      environment: "jungle",
+      snake: {
+        head: { x: 100, y: 300 },
+        velocity: { x: 3, y: 0 },
+        angle: 0,
+        segments: [],
+        length: 5,
+        evolutionStage: 0,
+      },
+      camera: {
+        x: 0,
+        y: 0,
+        zoom: 1,
+      },
+      worldScroll: 0,
+      bugs: [],
+      obstacles: [],
+      pipes: [],
+      powerUps: [],
+      activePowerUps: [],
+      projectiles: [],
+    });
+  },
+  
+  activateSpeedReduction: (durationSeconds: number) => {
+    const endTime = Date.now() + (durationSeconds * 1000);
+    set({
+      speedReductionActive: true,
+      speedReductionEndTime: endTime,
+      speedReductionUsedThisLevel: true,
+    });
+  },
+  
+  updateSpeedReduction: (currentTime: number) => {
+    const state = get();
+    if (state.speedReductionActive && currentTime >= state.speedReductionEndTime) {
+      set({
+        speedReductionActive: false,
+        speedReductionEndTime: 0,
+      });
+    }
+  },
+  
+  canShowSpeedReductionAd: () => {
+    const state = get();
+    // Show ad offer at level 10+ when speed reduction hasn't been used this level
+    // and speed reduction is not currently active
+    return state.currentLevel >= 10 && 
+           !state.speedReductionUsedThisLevel && 
+           !state.speedReductionActive;
+  },
+  
+  activateGravityDisabled: (durationSeconds: number) => {
+    const endTime = Date.now() + (durationSeconds * 1000);
+    set({
+      gravityDisabledActive: true,
+      gravityDisabledEndTime: endTime,
+      gravityDisabledUsedThisLevel: true,
+    });
+  },
+  
+  updateGravityDisabled: (currentTime: number) => {
+    const state = get();
+    if (state.gravityDisabledActive && currentTime >= state.gravityDisabledEndTime) {
+      set({
+        gravityDisabledActive: false,
+        gravityDisabledEndTime: 0,
+      });
+    }
+  },
+  
+  canShowGravityDisabledAd: () => {
+    const state = get();
+    // Show ad offer at level 31+ (Ice World and Neon Cave) when gravity disabled hasn't been used this level
+    // and gravity disabled is not currently active
+    return state.currentLevel >= 31 && 
+           !state.gravityDisabledUsedThisLevel && 
+           !state.gravityDisabledActive;
   },
 }));

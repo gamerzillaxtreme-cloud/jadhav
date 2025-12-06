@@ -75,7 +75,8 @@ export type ExtendedObstacle =
 
 export function createMovingVerticalPipe(
   x: number,
-  canvasHeight: number
+  canvasHeight: number,
+  difficultyMultiplier: number = 1.0
 ): MovingPipe {
   const height = Math.random() * (canvasHeight * 0.3) + 100;
   const gap = 140;
@@ -87,7 +88,7 @@ export function createMovingVerticalPipe(
     height,
     gap,
     type: 'moving-vertical',
-    moveSpeed: 0.5 + Math.random() * 0.5,
+    moveSpeed: (0.5 + Math.random() * 0.5) * difficultyMultiplier,
     moveDirection: Math.random() > 0.5 ? 1 : -1,
     moveRange: 80,
     initialY: height,
@@ -96,7 +97,8 @@ export function createMovingVerticalPipe(
 
 export function createSlidingHorizontalPipe(
   x: number,
-  canvasHeight: number
+  canvasHeight: number,
+  difficultyMultiplier: number = 1.0
 ): MovingPipe {
   const height = Math.random() * (canvasHeight * 0.3) + 100;
   const gap = 140;
@@ -108,7 +110,7 @@ export function createSlidingHorizontalPipe(
     height,
     gap,
     type: 'sliding-horizontal',
-    moveSpeed: 1.0 + Math.random() * 1.0,
+    moveSpeed: (1.0 + Math.random() * 1.0) * difficultyMultiplier,
     moveDirection: Math.random() > 0.5 ? 1 : -1,
     moveRange: 60,
     initialX: x,
@@ -117,7 +119,8 @@ export function createSlidingHorizontalPipe(
 
 export function createRotatingObstacle(
   x: number,
-  y: number
+  y: number,
+  difficultyMultiplier: number = 1.0
 ): RotatingObstacle {
   return {
     id: `rotating-${Date.now()}-${Math.random()}`,
@@ -126,13 +129,14 @@ export function createRotatingObstacle(
     size: 25 + Math.random() * 15,
     type: 'rotating',
     angle: 0,
-    rotationSpeed: 0.02 + Math.random() * 0.03,
+    rotationSpeed: (0.02 + Math.random() * 0.03) * difficultyMultiplier,
   };
 }
 
 export function createFallingRock(
   x: number,
-  startY: number = -50
+  startY: number = -50,
+  difficultyMultiplier: number = 1.0
 ): FallingRock {
   return {
     id: `falling-rock-${Date.now()}-${Math.random()}`,
@@ -140,13 +144,14 @@ export function createFallingRock(
     y: startY,
     size: 20 + Math.random() * 20,
     type: 'falling-rock',
-    fallSpeed: 2.0 + Math.random() * 2.0,
+    fallSpeed: (2.0 + Math.random() * 2.0) * difficultyMultiplier,
   };
 }
 
 export function createEnemy(
   x: number,
-  y: number
+  y: number,
+  difficultyMultiplier: number = 1.0
 ): Enemy {
   return {
     id: `enemy-${Date.now()}-${Math.random()}`,
@@ -154,7 +159,7 @@ export function createEnemy(
     y,
     size: 20,
     type: 'enemy',
-    moveSpeed: 1.5 + Math.random() * 1.0,
+    moveSpeed: (1.5 + Math.random() * 1.0) * difficultyMultiplier,
     moveDirection: 1,
     moveRange: 150,
     initialX: x,
@@ -163,7 +168,8 @@ export function createEnemy(
 
 export function createMovingPlatform(
   x: number,
-  y: number
+  y: number,
+  difficultyMultiplier: number = 1.0
 ): MovingPlatform {
   return {
     id: `platform-${Date.now()}-${Math.random()}`,
@@ -172,7 +178,7 @@ export function createMovingPlatform(
     width: 80,
     height: 20,
     type: 'moving-platform',
-    moveSpeed: 0.8,
+    moveSpeed: 0.8 * difficultyMultiplier,
     moveDirection: 1,
     moveRange: 100,
     initialY: y,
